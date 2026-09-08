@@ -10,13 +10,13 @@
 ---
 
 ## 1. Environment & Infrastructure
-- [ ] Repo scaffolded (`package.json`, `tsconfig.json`, folder layout)
-- [ ] `accounting_api.py` dropped in unmodified, packaged in `Dockerfile.accounting-api`
-- [ ] `docker-compose.yml` — postgres + accounting-api + node app, 3 services
-- [ ] Prisma schema written (`Invoice`, `LineItem`, `InvoiceStatus` enum)
-- [ ] First migration run, DB reachable from the app container
-- [ ] Gemini API key obtained (free tier, aistudio.google.com) and wired via `.env`
-- [ ] `docker compose up --build` verified from a clean checkout — the "single command" requirement
+- [x] Repo scaffolded (`package.json`, `tsconfig.json`, folder layout)
+- [x] `accounting_api.py` dropped in unmodified, packaged in `Dockerfile.accounting-api` (verified byte-identical to `TAKE_HOME.md` via diff)
+- [x] `docker-compose.yml` — postgres + accounting-api + node app, 3 services
+- [x] Prisma schema written (`Invoice`, `LineItem`, `InvoiceStatus` enum)
+- [x] First migration run, DB reachable from the app container
+- [ ] Gemini API key obtained (free tier, aistudio.google.com) and wired via `.env` — `.env` scaffolded with the field, key itself not yet obtained
+- [x] `docker compose up --build` verified — all 3 containers up, migration applied, app connects via Prisma and queries the DB, exits 0
 
 ## 2. Extraction (LLM)
 - [ ] Prompt + forced JSON schema defined for invoice extraction
