@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  fileName        String
+  partnerNameRaw  String?
+  partnerCode     String?
+  invoiceNumber   String?
+  issueDate       DateTime?
+  dueDate         DateTime?
+  subtotal        Int?
+  taxAmount       Int?
+  totalAmount     Int?
+  status          InvoiceStatus @default(INGESTED)
+  reviewReason    String?
+  accountingId    String?
+  apiErrorCode    String?
+  apiErrorMessage String?
+  rawExtraction   Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lines           LineItem[]
+
+  @@unique([partnerCode, invoiceNumber])
+}
+
+model LineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  description String
+  quantity    Int?
+  unit        String
+  unitPrice   Int?
+  amount      Int
+  taxCode     String
+}
+
+// EXTRACTED = raw model output normalized; NEEDS_REVIEW = a check failed before submit;
+// SKIPPED_DUPLICATE = matched an existing registration; FAILED_* = the API itself rejected it
+enum InvoiceStatus {
+  INGESTED
+  EXTRACTED
+  NEEDS_REVIEW
+  SKIPPED_DUPLICATE
+  REGISTERED
+  FAILED_PARTNER
+  FAILED_DUPLICATE
+  FAILED_AMOUNT
+  FAILED_VALIDATION
+}
