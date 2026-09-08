@@ -1,0 +1,21 @@
+# Planning doc — internal only, not part of the submission
+IMPLEMENTATION_PLAN.md
+
+# Node
+node_modules/
+dist/
+build/
+*.log
+
+# Env / secrets
+.env
+.env.local
+
+# Prisma
+prisma/migrations/dev.db
+*.db
+*.db-journal
+
+# OS
+.DS_Store
+Thumbs.db
