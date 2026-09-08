@@ -17,6 +17,7 @@
 - [x] First migration run, DB reachable from the app container
 - [ ] Gemini API key obtained (free tier, aistudio.google.com) and wired via `.env` — `.env` scaffolded with the field, key itself not yet obtained
 - [x] `docker compose up --build` verified — all 3 containers up, migration applied, app connects via Prisma and queries the DB, exits 0
+- [x] GitHub Actions CI: lint (ESLint), typecheck (`tsc --noEmit`), `prisma validate`, `accounting_api.py` vs. `TAKE_HOME.md` integrity diff, `docker compose build` — all 4 checks run green locally before commit
 
 ## 2. Extraction (LLM)
 - [ ] Prompt + forced JSON schema defined for invoice extraction
