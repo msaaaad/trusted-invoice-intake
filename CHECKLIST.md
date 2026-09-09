@@ -195,21 +195,21 @@ and `data/report.json` confirmed to contain all 12 rows.
 
 | # | Trap | Confirmed handled? |
 |---|---|---|
-| 01/07 | Exact duplicate invoice (PDF + re-scan) | [ ] |
-| 02 | Multi-page invoice, 26 line items | [ ] |
-| 03 | Mixed tax rates (8% + 10%) on one invoice | [ ] |
-| 04 | Handwritten received-stamp overlay | [ ] |
-| 06 | Supplier printed as alias only, not legal name | [ ] |
-| 08 | Handwritten correction to bank details | [ ] |
-| 09 | ¥1 rounding mismatch vs. printed total | [ ] |
-| 10 | Supplier not in partner master at all | [ ] |
-| 11 | Reiwa-era date format | [ ] |
-| 12 | Negative line item (discount) | [ ] |
+| 01/07 | Exact duplicate invoice (PDF + re-scan) | [x] domain 4: invoice_07 → `SKIPPED_DUPLICATE`, never reaches the API |
+| 02 | Multi-page invoice, 26 line items | [x] domain 2: all 26 lines extracted correctly, exact total match |
+| 03 | Mixed tax rates (8% + 10%) on one invoice | [x] domain 5: per-line tax computed correctly (also confirmed on invoice_08) |
+| 04 | Handwritten received-stamp overlay | [x] domain 2: registered cleanly (ACC-0001), stamp didn't confuse extraction |
+| 06 | Supplier printed as alias only, not legal name | [x] domain 4: "ヤマダ製作所" → `P-1001`, same code as the legal name |
+| 08 | Handwritten correction to bank details | [x] domain 2: flagged in `extractionNotes`, registered cleanly since the correction wasn't on a registered field |
+| 09 | ¥1 rounding mismatch vs. printed total | [x] domain 5: caught exactly (`expected 147496, extracted 147497`) → `NEEDS_REVIEW` |
+| 10 | Supplier not in partner master at all | [x] domain 4: → `NEEDS_REVIEW`, no guessed match |
+| 11 | Reiwa-era date format | [x] domain 3: `令和8年2月5日` → `2026-02-05` exactly |
+| 12 | Negative line item (discount) | [x] domain 2/5: `-30000` extracted and flowed through recompute + registration correctly |
 
 ## 11. Optional / Stretch (only if time remains after §1–10)
-- [ ] Minimal review surface for `NEEDS_REVIEW` rows (even just a formatted DB query/export)
-- [ ] Cost estimate write-up (§7 of `SUBMISSION.md`)
-- [ ] Low-confidence handling beyond the two hard checks already in place
+- [ ] Minimal review surface for `NEEDS_REVIEW` rows (even just a formatted DB query/export) — deliberately not built; `data/report.json` + the `Invoice` table are reviewable as-is, and a real screen is listed as priority #1 in `SUBMISSION.md` §8 instead
+- [x] Cost estimate write-up (§7 of `SUBMISSION.md`) — done as part of domain 9, and strengthened afterward with the real retry/backoff finding from the clean-clone test
+- [ ] Low-confidence handling beyond the two hard checks already in place — deliberately not built; recompute + dedupe are the two checks in place, per-field confidence is listed as priority #3 in `SUBMISSION.md` §8 instead
 
 ## 12. Final Submission
 - [ ] All required deliverables present: source ✅, `SUBMISSION.md` ✅, demo video/screenshots ❌ **not yet made**
