@@ -17,6 +17,17 @@ export async function runVerification() {
   for (const invoice of invoices) {
     const problems: string[] = [];
 
+    // The model's own uncertainty signal, captured at extraction time and
+    // otherwise just logged and ignored. Treating it as a third check: if
+    // Gemini itself flagged something (handwriting, a correction, anything
+    // it wasn't sure about), that's reason enough to hold for review rather
+    // than trust the hard-check math alone.
+    const raw = invoice.rawExtraction as { extractionNotes?: string[] } | null;
+    const notes = raw?.extractionNotes ?? [];
+    if (notes.length > 0) {
+      problems.push(`model flagged low confidence: ${notes.join(" | ")}`);
+    }
+
     for (const line of invoice.lines) {
       if (!line.unit.trim()) {
         problems.push(`line "${line.description}" is missing a required unit`);

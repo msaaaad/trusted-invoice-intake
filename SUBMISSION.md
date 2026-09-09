@@ -2,7 +2,7 @@
 
 - Name: Moinul Islam Shad
 - Submission date (YYYY-MM-DD): 2026-09-09
-- Hours actually spent: [see WORKLOG.md - fill in the honest total before sending this]
+- Hours actually spent: ~9 hours (see WORKLOG.md for the session-by-session breakdown - this went past the 8-hour target, and section 3 explains the scoping decisions that came with that)
 - Repository / how to run it: github.com/msaaaad/trusted-invoice-intake - `cp .env.example .env`, set `GEMINI_API_KEY`, then `docker compose up --build`. Details in README.md.
 
 ## 1. Understanding the request
@@ -58,10 +58,13 @@ model), all documented with what actually happened in CHECKLIST.md.
   front of a pipeline I hadn't fully verified.
 - Retries, backoff, a queue. Fine for running 12 invoices once; matters at
   real volume, not worth the hours here.
-- Deeper confidence modeling beyond the two hard checks I do have
-  (recompute + dedupe). A production version would want per-field
-  confidence from the model itself so one uncertain field doesn't send the
-  whole invoice to review.
+- **Per-field** confidence modeling. I did add a third check beyond
+  recompute + dedupe: if Gemini's own `extractionNotes` field is non-empty
+  (it flags handwriting, corrections, anything it wasn't sure about), the
+  whole invoice goes to review rather than being trusted just because the
+  math checks out. What I didn't build is the more granular version - one
+  uncertain field sending only that field for review instead of the whole
+  invoice. That's still cut, for the same time-budget reason.
 - Cloud deployment. Everything's local Docker Compose - matches "something
   working," not "production infrastructure."
 
@@ -100,7 +103,10 @@ key and ran this, Google had deprecated it. I hit the API directly to find
 out what was actually still live (`gemini-3.6-flash`) instead of guessing
 from documentation that was already stale. I picked Gemini over Claude or
 OpenAI specifically because it has a real no-card free tier - that's a
-budget decision, not a quality judgment.
+budget decision, not a quality judgment. Turned out the free tier is more
+limited than I assumed going in (see §7) - still the right call for a
+take-home with no budget, just not something I'd plan a production volume
+around without checking current limits and pricing first.
 
 **Docker Compose, 3 services** (postgres, the *unmodified*
 `accounting_api.py`, the app) so the whole thing stays one command
@@ -167,13 +173,13 @@ over - only running it against real data showed it.
 | invoice_02.pdf | NEEDS_REVIEW | Same issue as invoice_01, across all 26 line items. |
 | invoice_03.pdf | NEEDS_REVIEW | One line (a delivery fee) is missing its unit; the rest of the invoice is otherwise clean. |
 | invoice_04.jpg | REGISTERED (ACC-0001) | Passed every check, registered cleanly. |
-| invoice_05.jpg | REGISTERED (ACC-0005) | Passed every check, registered cleanly. |
-| invoice_06.jpg | REGISTERED (ACC-0006) | Supplier name on the invoice is an alias, not the legal name - matched correctly against the partner master's alias list. |
+| invoice_05.jpg | REGISTERED (ACC-0002) | Passed every check, registered cleanly. |
+| invoice_06.jpg | REGISTERED (ACC-0003) | Supplier name on the invoice is an alias, not the legal name - matched correctly against the partner master's alias list. |
 | invoice_07.jpg | SKIPPED_DUPLICATE | Same invoice number and supplier as invoice_01 (a re-scan of the same invoice). Never reached the API - caught before registration. |
-| invoice_08.jpg | REGISTERED (ACC-0002) | Has a handwritten "urgent" stamp and a handwritten correction to the bank account number; both were flagged as notes during extraction but neither affected a field the accounting system actually needs, so it registered cleanly. |
+| invoice_08.jpg | NEEDS_REVIEW | Has a handwritten "urgent" stamp and a handwritten correction to the bank account number. Both were flagged by the model itself during extraction (`extractionNotes`) - I initially let this register anyway since neither flagged field affects what the accounting system needs, but added a check that holds any invoice with model-flagged uncertainty for review regardless, and this is exactly the invoice that check exists for: a human correction to payment details shouldn't sail through just because the arithmetic checks out. |
 | invoice_09.pdf | NEEDS_REVIEW | Printed total is ¥1 off from what the line items actually add up to. Caught by my own recompute check before the API ever saw it. |
 | invoice_10.jpg | NEEDS_REVIEW | Supplier isn't in the partner master at all. Flagged rather than guessing the closest match. |
-| invoice_11.jpg | REGISTERED (ACC-0003) | Date printed in the Japanese Reiwa era format, converted correctly. |
+| invoice_11.jpg | REGISTERED (ACC-0005) | Date printed in the Japanese Reiwa era format, converted correctly. |
 | invoice_12.jpg | REGISTERED (ACC-0004) | Has a negative line item (a discount). Flowed through extraction, verification, and registration correctly with no special-casing needed. |
 
 Every invoice ends the pipeline in exactly one status - `REGISTERED`,
@@ -183,33 +189,44 @@ registered on a guess.
 
 ## 7. Cost, limits, and risk in production
 
-- **Cost per invoice:** $0 right now, on Gemini's free tier. If this had
-  to run on a paid tier, a flash-class vision call plus a small JSON
-  response is cheap - probably a fraction of a cent per invoice for the
-  model call itself. I noticed each call also spends some tokens on
-  internal "thinking" even for a trivial response, which I haven't
-  precisely priced out, but the LLM call is very likely the smallest cost
-  in this whole system either way.
-- **Monthly cost at 1,000 invoices per month:** LLM cost stays small -
-  low single digits of dollars a month, generously. The real cost is human
-  time reviewing `NEEDS_REVIEW` invoices. On this sample, half needed
-  review, but that's a deliberately adversarial sample built to hit edge
-  cases - a real supplier base is probably cleaner. Even at 10-15% needing
-  a few minutes of review each, that's the actual monthly cost driver, not
-  the AI.
-- **Processing time per invoice:** a few seconds per Gemini call, plus
-  negligible time for the rest of the pipeline. The full 12-invoice batch
-  runs in well under a minute end to end, not counting Docker startup.
-- **Where this breaks first:** it's a sequential, single-threaded batch
-  script - fine for a nightly run at 1,000/month, not fine if invoices
-  need to be processed the moment they arrive. There's no retry or backoff
-  either, and this isn't hypothetical - while testing a clean clone of this
-  repo I hit a network error on the first Gemini call, then a `503 Service
-  Unavailable` ("high demand") four times in a row on one specific file
-  before it went through on the sixth attempt, while every other file
-  succeeded first try. Right now that means rerunning the whole batch by
-  hand; at real volume this needs actual retry/backoff, not a person
-  noticing it failed.
+- **Cost per invoice:** I need to correct something I originally assumed
+  here. I wrote in my planning notes that Gemini's free tier had "generous
+  quota" - while doing final testing for this submission, I hit a real
+  `429 Too Many Requests` and found out the actual limit: **20 requests
+  per day, per project, per model**, on the free tier. That's not enough
+  to reliably process even this 12-invoice sample once in a day if any
+  file needs a retry (and I hit real transient failures during testing
+  that needed exactly that). So the honest answer is: the free tier is a
+  prototyping tool, not a running cost - at any real volume you're on the
+  paid tier from day one, not "eventually once you scale." I don't have a
+  reliable per-invoice number for the paid tier to quote here - model
+  pricing moves fast enough that the model I planned around
+  (`gemini-2.0-flash`) was deprecated before I finished building this, so
+  I'd check current pricing at deploy time rather than trust a number I
+  wrote days earlier.
+- **Monthly cost at 1,000 invoices per month:** ~33/day blows past the
+  free tier's 20/day cap immediately, so this requires the paid tier from
+  the start, not as a later scaling decision. Beyond the API bill, the
+  real cost driver is still probably human time reviewing `NEEDS_REVIEW`
+  invoices - on this sample, 6 of 12 needed review and 1 more was a
+  correctly-caught duplicate (so 5 of 12 auto-registered), but that's a
+  deliberately adversarial sample built to hit edge cases; a real supplier
+  base is probably cleaner. Even at 10-15% needing a few minutes of review
+  each, that likely dwarfs the LLM bill either way.
+- **Processing time per invoice:** a few seconds per Gemini call on a good
+  run, plus negligible time for the rest of the pipeline. But this isn't
+  reliably fast - see below.
+- **Where this breaks first:** two different things, both witnessed
+  directly while testing, not hypothetical. First, and more fundamental
+  than I expected: the free tier's daily quota (20 requests/day/model) is
+  the actual first wall this hits, not some later scaling concern - I
+  ran into it myself finishing this submission. Second, there's no retry
+  or backoff, and transient failures are real: I hit a network error and
+  four consecutive `503 Service Unavailable` ("high demand") responses on
+  one file before it went through, in addition to the quota wall. Right
+  now any of this means rerunning the batch by hand; at real volume this
+  needs actual retry/backoff and a paid tier, not a person noticing it
+  failed and trying again tomorrow.
 - **How you would find out if something was registered incorrectly:**
   every invoice's full history - what the model extracted, what got
   normalized, what the checks said, what the API returned - lives on one

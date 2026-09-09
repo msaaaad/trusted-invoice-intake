@@ -1,8 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "./db";
+import { buildHtmlReport } from "./reportHtml";
 
-const OUTPUT_PATH = path.join(__dirname, "..", "data", "report.json");
+const JSON_OUTPUT_PATH = path.join(__dirname, "..", "data", "report.json");
+const HTML_OUTPUT_PATH = path.join(__dirname, "..", "data", "report.html");
 
 export async function runReport() {
   const invoices = await prisma.invoice.findMany({
@@ -30,7 +32,9 @@ export async function runReport() {
     );
   }
 
-  await mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
-  await writeFile(OUTPUT_PATH, JSON.stringify(invoices, null, 2));
-  console.log(`\nFull audit export written to ${OUTPUT_PATH}`);
+  await mkdir(path.dirname(JSON_OUTPUT_PATH), { recursive: true });
+  await writeFile(JSON_OUTPUT_PATH, JSON.stringify(invoices, null, 2));
+  await writeFile(HTML_OUTPUT_PATH, buildHtmlReport(invoices));
+  console.log(`\nFull audit export written to ${JSON_OUTPUT_PATH}`);
+  console.log(`Browsable report written to ${HTML_OUTPUT_PATH}`);
 }
