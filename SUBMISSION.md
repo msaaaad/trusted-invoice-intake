@@ -2,7 +2,7 @@
 
 - Name: Moinul Islam Shad
 - Submission date (YYYY-MM-DD): 2026-09-09
-- Hours actually spent: [see WORKLOG.md - fill in the honest total before sending this]
+- Hours actually spent: ~9 hours (see WORKLOG.md for the session-by-session breakdown - this went past the 8-hour target, and section 3 explains the scoping decisions that came with that)
 - Repository / how to run it: github.com/msaaaad/trusted-invoice-intake - `cp .env.example .env`, set `GEMINI_API_KEY`, then `docker compose up --build`. Details in README.md.
 
 ## 1. Understanding the request
