@@ -5,7 +5,7 @@
 > in the final diff. Organized by domain, matching `IMPLEMENTATION_PLAN.md`.
 > Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
-**Last updated:** 2026-09-09 (domain 5)
+**Last updated:** 2026-09-09 (domains 6 & 7 — the full pipeline registers real invoices end to end)
 
 ---
 
@@ -139,14 +139,41 @@ the subtotal/tax/total recompute correctly without special-casing.
 - [x] DB unique constraint on `(partnerCode, invoiceNumber)` in place — done in domain 1
 - [x] Constraint collision mapped to a clean `SKIPPED_DUPLICATE` status, not a raw DB error — done in domain 4 (pulled forward: the collision surfaces as soon as `partnerCode` is assigned, not later)
 - [x] Confirmed against invoice_01 / invoice_07 (the deliberate duplicate pair) — invoice_07 never gets a partnerCode, never reaches the API
-- [ ] **Still needed here, and it's a different gap than it first looked:** domain 4's check queries our own local DB, which already catches duplicates across any run (it's not batch-scoped). What it *can't* catch is the accounting system itself already holding a registration our local DB doesn't know about (local DB reset, or someone/something else registered it directly against the API) - that needs a live `GET /invoices` check against the accounting API immediately before `POST`, as the plan originally called for, not a substitute for domain 4's check but a second, independent layer against a different source of truth
+- [x] Live `GET /invoices` check (`src/register.ts`) fetched once per run, independent of our own DB - the second layer domain 4's fix couldn't provide
+
+**Verified the live check actually does something, not just that it exists:**
+after a normal run registered 6 invoices, manually reset one already-`REGISTERED`
+row (invoice_04) back to `EXTRACTED` with `accountingId: null` - simulating our
+local DB losing track of a registration the accounting system still remembers.
+Reran the pipeline: it correctly caught the collision via the live check and
+routed it to `SKIPPED_DUPLICATE` instead of double-`POST`ing. Restored the
+row's correct state afterward. This is exactly the failure mode a local-DB-only
+check can't catch, proven, not assumed.
 
 ## 7. Accounting API Integration
-- [ ] `POST /invoices` client implemented, correct payload shape
-- [ ] Every documented error code mapped to a specific status (see plan §4 table)
-- [ ] `X-API-Key` header handling, `401` path tested
-- [ ] Successful registrations store `accountingId` back on the row
-- [ ] Full run produces one status per invoice for all 12 samples, no unhandled exceptions
+- [x] `POST /invoices` client implemented, correct payload shape (`src/accountingApi.ts`)
+- [x] Every documented error code mapped to a specific status: `PARTNER_NOT_FOUND`→`FAILED_PARTNER`, `DUPLICATE_INVOICE`→`FAILED_DUPLICATE`, `AMOUNT_MISMATCH`→`FAILED_AMOUNT`, `UNKNOWN_TAX_CODE`/`DUE_DATE_BEFORE_ISSUE_DATE`/`VALIDATION_ERROR`→`FAILED_VALIDATION` (raw code preserved in `apiErrorCode` regardless); anything unmapped also falls back to `FAILED_VALIDATION` with the real code kept, since that firing at all would mean a bug in this integration, not a data problem
+- [x] `X-API-Key` header handling confirmed working (all 6 real registrations succeeded); wrong-key path tested directly - fails cleanly with `UNAUTHORIZED`/the exact API message, no crash or hang
+- [x] Successful registrations store `accountingId` back on the row
+- [x] Full run produces one status per invoice for all 12 samples, no unhandled exceptions
+
+**Verified: ran the full pipeline end to end against the real accounting API.**
+Final result for all 12 invoices, confirmed both via direct DB query and
+`GET /invoices` on the live API:
+
+| Status | Invoices |
+|---|---|
+| `REGISTERED` (ACC-0001..0006) | 04, 05, 06, 08, 11, 12 |
+| `NEEDS_REVIEW` (missing unit) | 01, 02, 03 |
+| `NEEDS_REVIEW` (¥1 amount mismatch) | 09 |
+| `NEEDS_REVIEW` (unknown supplier) | 10 |
+| `SKIPPED_DUPLICATE` | 07 |
+
+All 6 registered totals matched the source invoices exactly, including
+invoice_12's negative discount line flowing through registration correctly
+(subtotal 540,000 / tax 54,000 / total 594,000). Reran the full pipeline a
+second time afterward with zero changes in output - confirms the whole
+7-domain pipeline is idempotent end to end, not just individual steps.
 
 ## 8. Audit Trail & Reporting
 - [ ] Final report query (`status, count(*) GROUP BY status`) implemented
