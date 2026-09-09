@@ -5,7 +5,7 @@
 > in the final diff. Organized by domain, matching `IMPLEMENTATION_PLAN.md`.
 > Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
-**Last updated:** 2026-09-09 (domains 8 & 9 — required deliverables complete)
+**Last updated:** 2026-09-09 (domain 11 — low-confidence handling + HTML report, and a real free-tier quota correction)
 
 ---
 
@@ -207,9 +207,34 @@ and `data/report.json` confirmed to contain all 12 rows.
 | 12 | Negative line item (discount) | [x] domain 2/5: `-30000` extracted and flowed through recompute + registration correctly |
 
 ## 11. Optional / Stretch (only if time remains after §1–10)
-- [ ] Minimal review surface for `NEEDS_REVIEW` rows (even just a formatted DB query/export) — deliberately not built; `data/report.json` + the `Invoice` table are reviewable as-is, and a real screen is listed as priority #1 in `SUBMISSION.md` §8 instead
-- [x] Cost estimate write-up (§7 of `SUBMISSION.md`) — done as part of domain 9, and strengthened afterward with the real retry/backoff finding from the clean-clone test
-- [ ] Low-confidence handling beyond the two hard checks already in place — deliberately not built; recompute + dedupe are the two checks in place, per-field confidence is listed as priority #3 in `SUBMISSION.md` §8 instead
+- [ ] Minimal review surface for `NEEDS_REVIEW` rows — **explicitly the user's own call, not built by me.** `data/report.json`, the `Invoice` table, and now `data/report.html` (below) are reviewable as-is; a real edit/resubmit screen is still listed as priority #1 in `SUBMISSION.md` §8.
+- [x] Cost estimate write-up (§7 of `SUBMISSION.md`) — done as part of domain 9, and substantially corrected afterward (see below)
+- [x] Low-confidence handling beyond the two hard checks — **built and verified.** `src/verify.ts` now treats a non-empty `extractionNotes` (the model's own uncertainty signal, captured since domain 2 but previously just logged) as a third check: any flagged uncertainty routes to `NEEDS_REVIEW`, full stop, regardless of whether the math checks out.
+- [x] **Bonus, not originally listed:** `src/reportHtml.ts` - a small, self-contained static HTML report (`data/report.html`) alongside the JSON export. No backend, no server - the invoice data is embedded directly in the file, opens in any browser via `file://`. Status badges, a filter by status, and an expandable line-item view per invoice. Built purely for demo/visual purposes, not as the "review surface" above - it's read-only, no edit/resubmit capability.
+
+**Verified: reset the local DB and replayed the 12 real, previously-captured
+extraction results (from `data/report.json`, saved before this change) through
+the updated pipeline** - no new Gemini calls needed, which mattered because
+live testing that same day had already hit the free tier's daily quota wall
+(see the correction in `SUBMISSION.md` §7). Result: **invoice_08 flipped from
+`REGISTERED` to `NEEDS_REVIEW`** - it has a handwritten stamp and a
+handwritten bank-account correction that the model had already flagged in
+`extractionNotes` since domain 2, but nothing acted on that signal until now.
+New final tally: `NEEDS_REVIEW: 6, REGISTERED: 5, SKIPPED_DUPLICATE: 1` -
+different from the `5/6/1` split domains 5, 7, and 8 recorded, because this
+domain changed what counts as "safe to register," not because anything
+upstream broke. `SUBMISSION.md` §6 and §7 updated to match this real number,
+not the earlier one.
+
+**Also discovered here, and important enough to flag on its own:** while
+testing this change, hit a real `429 Too Many Requests` - the Gemini free
+tier is capped at **20 requests/day per project per model**, far tighter
+than "generous quota" as originally written in the plan. This directly
+contradicted an earlier claim in `SUBMISSION.md`; corrected there rather
+than left standing. Also hit two more rounds of transient `503`/network
+failures on top of the ones from the clean-clone test, on different files
+each time - reinforcing that this isn't bad luck on one file, it's a real,
+recurring gap that retry/backoff would need to solve.
 
 ## 12. Final Submission
 - [ ] All required deliverables present: source ✅, `SUBMISSION.md` ✅, demo video/screenshots ❌ **not yet made**
