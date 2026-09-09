@@ -1,9 +1,11 @@
 import "dotenv/config";
 import { prisma } from "./db";
 import { runExtraction } from "./extract";
+import { runNormalization } from "./normalize";
 
 async function main() {
   await runExtraction();
+  await runNormalization();
 }
 
 main()
