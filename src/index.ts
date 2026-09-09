@@ -2,10 +2,12 @@ import "dotenv/config";
 import { prisma } from "./db";
 import { runExtraction } from "./extract";
 import { runNormalization } from "./normalize";
+import { runPartnerResolution } from "./resolvePartner";
 
 async function main() {
   await runExtraction();
   await runNormalization();
+  await runPartnerResolution();
 }
 
 main()
