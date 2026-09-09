@@ -203,8 +203,13 @@ registered on a guess.
 - **Where this breaks first:** it's a sequential, single-threaded batch
   script - fine for a nightly run at 1,000/month, not fine if invoices
   need to be processed the moment they arrive. There's no retry or backoff
-  either, so a transient network failure (I hit one once, during testing)
-  currently means rerunning the batch rather than automatic recovery.
+  either, and this isn't hypothetical - while testing a clean clone of this
+  repo I hit a network error on the first Gemini call, then a `503 Service
+  Unavailable` ("high demand") four times in a row on one specific file
+  before it went through on the sixth attempt, while every other file
+  succeeded first try. Right now that means rerunning the whole batch by
+  hand; at real volume this needs actual retry/backoff, not a person
+  noticing it failed.
 - **How you would find out if something was registered incorrectly:**
   every invoice's full history - what the model extracted, what got
   normalized, what the checks said, what the API returned - lives on one
