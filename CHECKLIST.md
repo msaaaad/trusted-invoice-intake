@@ -5,7 +5,7 @@
 > in the final diff. Organized by domain, matching `IMPLEMENTATION_PLAN.md`.
 > Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
-**Last updated:** 2026-09-09 (domain 4)
+**Last updated:** 2026-09-09 (domain 5)
 
 ---
 
@@ -100,12 +100,40 @@ case; domain 6 still needs the pre-registration check against already
 querying the DB directly, not just reading console output.
 
 ## 5. Verification
-- [ ] Subtotal recomputed from line items independently of the model's extracted value
-- [ ] Tax recomputed per tax code, floor-rounded, matching the API's own rule
-- [ ] Total recomputed and diffed against extracted total
-- [ ] Mismatch routes to `NEEDS_REVIEW` before any API call — confirmed against invoice_09 (¥1 rounding case)
-- [ ] Mixed tax-rate invoices (8% + 10% on one invoice) computed correctly — confirmed against invoice_03
-- [ ] Missing/empty required fields (e.g. `unit`) route to `NEEDS_REVIEW`, never a guessed default — found live on invoice_01/02 (see domain 2 findings), not yet implemented
+- [x] Subtotal recomputed from line items independently of the model's extracted value (`src/verify.ts`)
+- [x] Tax recomputed per tax code, floor-rounded, matching the API's own rule — deliberately kept as plain `Math.floor(subtotal * 0.10)` float math, not integer-safe math, because JS and Python both use IEEE754 doubles: this predicts the API's actual floating-point result exactly, where a "more correct" integer version could silently diverge from it
+- [x] Total recomputed and diffed against extracted total
+- [x] Mismatch routes to `NEEDS_REVIEW` before any API call — confirmed against invoice_09: caught the exact ¥1 case (expected 147496, extracted 147497)
+- [x] Mixed tax-rate invoices (8% + 10% on one invoice) computed correctly — confirmed against invoice_03 and invoice_08
+- [x] Missing/empty required fields (`unit`) route to `NEEDS_REVIEW`, never a guessed default — implemented and confirmed
+- [x] Bonus (not originally listed, cheap to add): due-date-before-issue-date check, mirroring the API's own `DUE_DATE_BEFORE_ISSUE_DATE` rule
+
+**The missing-`unit` finding turned out bigger than domain 2 suggested.** It's
+not just invoice_01/02 - invoice_03's "配送手数料" (delivery fee) line is
+missing a unit too, in an otherwise-clean invoice with proper units on its
+other 3 lines. Pattern: flat-fee/lump-sum lines (delivery, freight, shipping)
+frequently have no quantity/unit/unit_price on the source invoice at all,
+which is realistic - a flat fee genuinely isn't measured in a unit. This is
+a real structural mismatch between how these invoices are written and what
+the accounting API's schema requires, not an extraction accuracy problem.
+
+**Verified: ran against all 12 real invoices.** Final tally, confirmed via
+direct DB query:
+
+| Status | Invoices | Reason |
+|---|---|---|
+| Ready (still `EXTRACTED`) | 04, 05, 06, 08, 11, 12 | passed every check |
+| `NEEDS_REVIEW` | 01, 02, 03 | missing required `unit` field |
+| `NEEDS_REVIEW` | 09 | ¥1 total mismatch (the deliberate trap) |
+| `NEEDS_REVIEW` | 10 | unknown supplier (domain 4) |
+| `SKIPPED_DUPLICATE` | 07 | duplicate of invoice_01 (domain 4) |
+
+**Exactly half the batch (6/12) needs human review**, for six genuinely
+different reasons spanning three different domains (extraction data gaps,
+arithmetic mismatch, partner mismatch, duplication). This is real, useful
+material for SUBMISSION.md's "automation vs. human review" discussion -
+also confirms invoice_12's negative discount line (`-30000`) flows through
+the subtotal/tax/total recompute correctly without special-casing.
 
 ## 6. Deduplication
 - [x] DB unique constraint on `(partnerCode, invoiceNumber)` in place — done in domain 1
