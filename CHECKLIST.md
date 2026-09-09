@@ -176,9 +176,13 @@ second time afterward with zero changes in output - confirms the whole
 7-domain pipeline is idempotent end to end, not just individual steps.
 
 ## 8. Audit Trail & Reporting
-- [ ] Final report query (`status, count(*) GROUP BY status`) implemented
-- [ ] Per-invoice detail view possible (raw extraction → normalized → check result → API outcome)
-- [ ] Report exportable (console table minimum; CSV/JSON export if time allows)
+- [x] Final report query (`status, count(*) GROUP BY status`) implemented (`src/report.ts`)
+- [x] Per-invoice detail view possible — every stage's output already lives on the `Invoice` row (`rawExtraction`, normalized fields, `reviewReason`, `apiErrorCode`, `accountingId`), so the "view" is just reading the row, not a separate log to reconstruct
+- [x] Report exportable — console summary + detail table, plus a full JSON export to `data/report.json` (gitignored, regenerated each run)
+
+**Verified:** ran as the last step of the full pipeline. Summary matched the
+known final tally exactly (`NEEDS_REVIEW: 5, REGISTERED: 6, SKIPPED_DUPLICATE: 1`),
+and `data/report.json` confirmed to contain all 12 rows.
 
 ## 9. Documentation
 - [ ] `README.md` — single command to run, prerequisites, `.env.example` explained
