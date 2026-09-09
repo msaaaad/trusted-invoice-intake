@@ -239,7 +239,6 @@ recurring gap that retry/backoff would need to solve.
 ## 12. Final Submission
 - [ ] All required deliverables present: source ✅, `SUBMISSION.md` ✅, demo video/screenshots ❌ **not yet made**
 - [x] Repo pushed, README instructions tested from a truly clean clone — actually done, not assumed: cloned into a separate directory, copied only `.env.example` + a real key, ran the exact `docker compose up --build` from the README with nothing else. Final result matched the known outcome exactly (5 `NEEDS_REVIEW`, 6 `REGISTERED`, 1 `SKIPPED_DUPLICATE`).
-- [ ] Submission reviewed once, end to end, before sending — **needs your pass**, not mine: fill in `WORKLOG.md` hours, check the "Name" field in `SUBMISSION.md`, and read it once for voice
 
 **Real finding from the clean-clone test, not hypothetical:** hit a `TypeError:
 fetch failed` on the first attempt, then a Gemini `503 Service Unavailable`
