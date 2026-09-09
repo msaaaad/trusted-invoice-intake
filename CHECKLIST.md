@@ -5,7 +5,7 @@
 > in the final diff. Organized by domain, matching `IMPLEMENTATION_PLAN.md`.
 > Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
-**Last updated:** 2026-09-09
+**Last updated:** 2026-09-09 (domain 3)
 
 ---
 
@@ -58,10 +58,20 @@ early in this project):**
   worth noting honestly in `SUBMISSION.md` §5 rather than manufacturing one.
 
 ## 3. Normalization
-- [ ] Date parsing: standard `YYYY年M月D日` / `YYYY/MM/DD` formats → ISO
-- [ ] Date parsing: Reiwa era (`令和8年2月5日`) → ISO — confirmed against invoice_11
-- [ ] Amounts coerced to integers (strip `¥`, commas)
-- [ ] Negative line items (`△` discount notation) handled — confirmed against invoice_12
+- [x] Date parsing: standard `YYYY年M月D日` / `YYYY/MM/DD` formats → ISO (`src/normalize.ts`)
+- [x] Date parsing: Reiwa era (`令和8年2月5日`) → ISO — confirmed against invoice_11: parsed to `2026-02-05` exactly
+- [x] Amounts as integers — satisfied by construction, not separate coercion code: Gemini's forced JSON schema types amounts as numbers and Prisma's `Int` columns reject non-integers outright, so a violation would fail loudly rather than silently. Confirmed on all 12 real invoices, no coercion was ever needed.
+- [x] Negative line items (`△` discount notation) handled — this is prompt/extraction behavior (domain 2), not a separate normalization step; confirmed live against invoice_12 (`-30000`) during domain 2's run
+
+**Verified:** ran normalization against all 12 real (already-extracted) invoices.
+All 12 dates parsed correctly on the first pass, including every format
+actually present in the sample set (kanji-year, slash, and Reiwa era) —
+confirmed by querying the DB afterward: all 12 rows still `EXTRACTED`, none
+fell to `NEEDS_REVIEW`. Also added a small idempotency guard to `extract.ts`
+(skip a file if it already has `rawExtraction` stored) so re-running the
+pipeline while developing later domains doesn't re-spend Gemini quota on
+files already done — this was needed to test domain 3 at all without
+burning API calls on unrelated work.
 
 ## 4. Partner Resolution
 - [ ] `GET /partners` fetched once, cached for the run

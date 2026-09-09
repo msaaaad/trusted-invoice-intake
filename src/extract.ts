@@ -33,6 +33,12 @@ export async function runExtraction() {
     .sort();
 
   for (const fileName of files) {
+    const existing = await prisma.invoice.findUnique({ where: { fileName } });
+    if (existing?.rawExtraction) {
+      console.log(`Skipping ${fileName}, already extracted.`);
+      continue;
+    }
+
     const buffer = await readFile(path.join(INVOICES_DIR, fileName));
     const mimeType = mimeTypeFor(fileName);
 
