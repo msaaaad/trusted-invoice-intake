@@ -5,6 +5,7 @@ import { runNormalization } from "./normalize";
 import { runPartnerResolution } from "./resolvePartner";
 import { runVerification } from "./verify";
 import { runRegistration } from "./register";
+import { runReport } from "./report";
 
 async function main() {
   await runExtraction();
@@ -12,6 +13,7 @@ async function main() {
   await runPartnerResolution();
   await runVerification();
   await runRegistration();
+  await runReport();
 }
 
 main()
