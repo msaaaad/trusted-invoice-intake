@@ -4,12 +4,14 @@ import { runExtraction } from "./extract";
 import { runNormalization } from "./normalize";
 import { runPartnerResolution } from "./resolvePartner";
 import { runVerification } from "./verify";
+import { runRegistration } from "./register";
 
 async function main() {
   await runExtraction();
   await runNormalization();
   await runPartnerResolution();
   await runVerification();
+  await runRegistration();
 }
 
 main()
