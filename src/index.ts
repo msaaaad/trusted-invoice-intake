@@ -1,16 +1,14 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "./db";
+import { runExtraction } from "./extract";
 
 async function main() {
-  const count = await prisma.invoice.count();
-  console.log(`DB connected. Invoice rows: ${count}`);
+  await runExtraction();
 }
 
 main()
   .catch((err) => {
     console.error(err);
-    process.exit(1);
+    process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());

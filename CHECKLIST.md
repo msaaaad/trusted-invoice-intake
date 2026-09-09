@@ -5,7 +5,7 @@
 > in the final diff. Organized by domain, matching `IMPLEMENTATION_PLAN.md`.
 > Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
-**Last updated:** 2026-09-08
+**Last updated:** 2026-09-09
 
 ---
 
@@ -15,16 +15,47 @@
 - [x] `docker-compose.yml` — postgres + accounting-api + node app, 3 services
 - [x] Prisma schema written (`Invoice`, `LineItem`, `InvoiceStatus` enum)
 - [x] First migration run, DB reachable from the app container
-- [ ] Gemini API key obtained (free tier, aistudio.google.com) and wired via `.env` — `.env` scaffolded with the field, key itself not yet obtained
+- [x] Gemini API key obtained (free tier, aistudio.google.com) and wired via `.env`
 - [x] `docker compose up --build` verified — all 3 containers up, migration applied, app connects via Prisma and queries the DB, exits 0
 - [x] GitHub Actions CI: lint (ESLint), typecheck (`tsc --noEmit`), `prisma validate`, `accounting_api.py` vs. `TAKE_HOME.md` integrity diff, `docker compose build` — all 4 checks run green locally before commit
 
 ## 2. Extraction (LLM)
-- [ ] Prompt + forced JSON schema defined for invoice extraction
-- [ ] Handles all 3 file types: text-layer PDF, scanned-image PDF, JPG
-- [ ] Ran against all 12 sample invoices, raw output stored in `Invoice.rawExtraction`
-- [ ] Spot-checked extraction by eye against the source image for each invoice
-- [ ] Model explicitly asked to flag ambiguous/handwritten fields (`extraction_notes`)
+- [x] Prompt + forced JSON schema defined for invoice extraction (`src/gemini.ts`)
+- [x] Handles all 3 file types: text-layer PDF, scanned-image PDF, JPG — confirmed on real files (invoice_01-03/09 = PDF, rest = JPG)
+- [x] Ran against all 12 sample invoices, raw output stored in `Invoice.rawExtraction`
+- [x] Spot-checked extraction by eye against the source image for each invoice — see findings below
+- [x] Model explicitly asked to flag ambiguous/handwritten fields (`extractionNotes`) — confirmed working: invoice_08's "至急" stamp and handwritten bank-account correction were both flagged
+
+**Model note:** `gemini-2.0-flash` (originally planned) was deprecated by
+Google before this was run — the API returned 404 pointing at
+`gemini-3.6-flash`, which is beyond this assistant's training data. Verified
+live against the API directly (not assumed) before switching. Worth a line
+in `SUBMISSION.md` §4/§7: the free-tier model landscape moves fast enough
+that a take-home written one week and run the next can hit a deprecated
+model name.
+
+**Live run findings (all 12 invoices, spot-checked against manual reads from
+early in this project):**
+- All totals, line items, quantities, prices, and tax-code assignments
+  matched exactly, including the hard cases: the 26-line 2-page invoice
+  (invoice_02), mixed 8%/10% tax rates on one invoice (invoice_03, invoice_08),
+  the duplicate pair (invoice_01/07, identical invoice number + amounts),
+  the alias-only supplier name preserved as printed rather than normalized
+  (invoice_06: "ヤマダ製作所"), the ¥1 printed-total mismatch reported as-is
+  rather than self-corrected (invoice_09), the unknown supplier's name
+  captured plainly (invoice_10), the Reiwa-era date passed through raw and
+  unconverted (invoice_11: "令和8年2月5日"), and the negative discount line
+  output as `-30000` (invoice_12)
+- **New finding, not previously known:** invoice_01 and invoice_02 (both
+  native PDFs) have a genuinely empty `unit` field for every line item in
+  the *source document itself* — confirmed by comparing against the original
+  PDF content, not a model miss. The accounting API requires `unit` as a
+  non-empty string, so both invoices will fail registration on this field
+  alone. Decision (to implement in domain 5/7, not now): treat a missing
+  required field as a `NEEDS_REVIEW` trigger, never a guessed default -
+  consistent with "never guess, flag for review" elsewhere in this project.
+- No case of the model getting something wrong was found in this batch —
+  worth noting honestly in `SUBMISSION.md` §5 rather than manufacturing one.
 
 ## 3. Normalization
 - [ ] Date parsing: standard `YYYY年M月D日` / `YYYY/MM/DD` formats → ISO
@@ -44,6 +75,7 @@
 - [ ] Total recomputed and diffed against extracted total
 - [ ] Mismatch routes to `NEEDS_REVIEW` before any API call — confirmed against invoice_09 (¥1 rounding case)
 - [ ] Mixed tax-rate invoices (8% + 10% on one invoice) computed correctly — confirmed against invoice_03
+- [ ] Missing/empty required fields (e.g. `unit`) route to `NEEDS_REVIEW`, never a guessed default — found live on invoice_01/02 (see domain 2 findings), not yet implemented
 
 ## 6. Deduplication
 - [ ] DB unique constraint on `(partnerCode, invoiceNumber)` in place

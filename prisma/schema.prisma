@@ -9,7 +9,7 @@ datasource db {
 
 model Invoice {
   id              String        @id @default(cuid())
-  fileName        String
+  fileName        String        @unique
   partnerNameRaw  String?
   partnerCode     String?
   invoiceNumber   String?
