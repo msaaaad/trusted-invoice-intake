@@ -5,7 +5,7 @@
 > in the final diff. Organized by domain, matching `IMPLEMENTATION_PLAN.md`.
 > Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
-**Last updated:** 2026-09-09 (domain 3)
+**Last updated:** 2026-09-09 (domain 4)
 
 ---
 
@@ -74,10 +74,30 @@ files already done — this was needed to test domain 3 at all without
 burning API calls on unrelated work.
 
 ## 4. Partner Resolution
-- [ ] `GET /partners` fetched once, cached for the run
-- [ ] Exact legal-name matching implemented
-- [ ] Alias matching implemented — confirmed against invoice_06 (alias-only supplier name)
-- [ ] No-match case produces `NEEDS_REVIEW`, not a guess — confirmed against invoice_10 (unknown supplier)
+- [x] `GET /partners` fetched once, cached for the run (`src/accountingApi.ts`, `src/resolvePartner.ts`)
+- [x] Exact legal-name matching implemented
+- [x] Alias matching implemented — confirmed against invoice_06: "ヤマダ製作所" (alias) resolved to P-1001, same code as invoice_01/07's full legal name "株式会社山田製作所"
+- [x] No-match case produces `NEEDS_REVIEW`, not a guess — confirmed against invoice_10: "新星ロジスティクス株式会社" not in the partner master, correctly flagged rather than assigned a nearest-guess code
+
+**Real bug hit and fixed during this domain:** the very first live run crashed
+with a Prisma unique-constraint violation on `(partnerCode, invoiceNumber)`.
+Root cause: assigning `partnerCode` is what *completes* that pair, so the
+duplicate-invoice case (invoice_01/07, same invoice number, same supplier)
+collides at partner-resolution time - not at the later dedupe/registration
+stage domain 6 was originally planned to own. Fixed by checking for an
+existing row with the same `(partnerCode, invoiceNumber)` before writing,
+and routing the second one to `SKIPPED_DUPLICATE` with a reason pointing at
+the original file, instead of letting the write throw. This effectively
+pulls part of domain 6's job forward out of necessity - noted here rather
+than silently absorbed, since it changes what domain 6 still has left to do
+(the DB constraint + this check already cover the "two files, same invoice"
+case; domain 6 still needs the pre-registration check against already
+*registered* invoices from past runs).
+
+**Verified:** ran against all 12 real invoices via the real accounting API
+(not mocked). Final state: 10 resolved to a partner code, invoice_07 correctly
+`SKIPPED_DUPLICATE`, invoice_10 correctly `NEEDS_REVIEW` - confirmed by
+querying the DB directly, not just reading console output.
 
 ## 5. Verification
 - [ ] Subtotal recomputed from line items independently of the model's extracted value
@@ -88,10 +108,10 @@ burning API calls on unrelated work.
 - [ ] Missing/empty required fields (e.g. `unit`) route to `NEEDS_REVIEW`, never a guessed default — found live on invoice_01/02 (see domain 2 findings), not yet implemented
 
 ## 6. Deduplication
-- [ ] DB unique constraint on `(partnerCode, invoiceNumber)` in place
-- [ ] Pre-check query against existing `REGISTERED` rows before attempting insert
-- [ ] Constraint violation mapped to a clean `SKIPPED_DUPLICATE` status, not a raw DB error
-- [ ] Confirmed against invoice_01 / invoice_07 (the deliberate duplicate pair) — second one never reaches the API
+- [x] DB unique constraint on `(partnerCode, invoiceNumber)` in place — done in domain 1
+- [x] Constraint collision mapped to a clean `SKIPPED_DUPLICATE` status, not a raw DB error — done in domain 4 (pulled forward: the collision surfaces as soon as `partnerCode` is assigned, not later)
+- [x] Confirmed against invoice_01 / invoice_07 (the deliberate duplicate pair) — invoice_07 never gets a partnerCode, never reaches the API
+- [ ] **Still needed here, and it's a different gap than it first looked:** domain 4's check queries our own local DB, which already catches duplicates across any run (it's not batch-scoped). What it *can't* catch is the accounting system itself already holding a registration our local DB doesn't know about (local DB reset, or someone/something else registered it directly against the API) - that needs a live `GET /invoices` check against the accounting API immediately before `POST`, as the plan originally called for, not a substitute for domain 4's check but a second, independent layer against a different source of truth
 
 ## 7. Accounting API Integration
 - [ ] `POST /invoices` client implemented, correct payload shape
