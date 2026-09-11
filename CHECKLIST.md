@@ -237,8 +237,18 @@ each time - reinforcing that this isn't bad luck on one file, it's a real,
 recurring gap that retry/backoff would need to solve.
 
 ## 12. Final Submission
-- [ ] All required deliverables present: source ✅, `SUBMISSION.md` ✅, demo video/screenshots ❌ **not yet made**
+- [x] All required deliverables present: source ✅, `SUBMISSION.md` ✅, demo video ✅ (recorded live on 2026-09-11, linked in `SUBMISSION.md`'s header)
 - [x] Repo pushed, README instructions tested from a truly clean clone — actually done, not assumed: cloned into a separate directory, copied only `.env.example` + a real key, ran the exact `docker compose up --build` from the README with nothing else. Final result matched the known outcome exactly (5 `NEEDS_REVIEW`, 6 `REGISTERED`, 1 `SKIPPED_DUPLICATE`).
+- [x] Submission reviewed end to end — user did the voice/Name pass on `SUBMISSION.md` themselves; hours and demo link filled in as the last step
+
+**The demo recording itself hit two real failures live** - a Gemini `503`
+mid-run and the actual `429` daily quota cap on the very last invoice,
+needing a second API key (a different Google Cloud project) to finish.
+Kept in as genuine evidence of the exact risk `SUBMISSION.md` §7 already
+describes, not edited around. Also found and fixed a real (cosmetic)
+bug while watching logs closely for the first time: the postgres
+healthcheck was checking a database named after the user rather than
+the actual database name.
 
 **Real finding from the clean-clone test, not hypothetical:** hit a `TypeError:
 fetch failed` on the first attempt, then a Gemini `503 Service Unavailable`
