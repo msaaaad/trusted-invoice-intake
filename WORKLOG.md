@@ -91,9 +91,23 @@ burning more calls.
 
 Time: ~7.6h
 
+## 2026-09-11
+
+Final live test + recording. Fixed a real (cosmetic but noisy) bug found
+while watching logs closely for the first time - the postgres healthcheck
+was checking a database name that never existed. Then hit the free tier's
+daily quota wall twice more live on camera: a 503 mid-run, and later the
+actual 429 daily cap on the very last invoice, which needed a second API
+key (a different Google Cloud project) to finish the recording. Not
+edited around - kept as real evidence of the exact risk already written
+up in SUBMISSION.md section 7. Recorded and shared the demo video.
+
+Time: ~0.75h
+
 ---
 
-**Total hours actually spent: ~9h** (1.5h night-of planning + ~7.6h
-implementation day). This is a reasoned reconstruction from what was
-actually built/tested/debugged session by session, not a stopwatch log -
-adjust if your own memory of the elapsed time differs.
+**Total hours actually spent: ~9.75h** (1.5h night-of planning + ~7.6h
+implementation day + ~0.75h final test/recording). This is a reasoned
+reconstruction from what was actually built/tested/debugged session by
+session, not a stopwatch log - adjust if your own memory of the elapsed
+time differs.

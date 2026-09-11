@@ -1,9 +1,10 @@
 # Submission
 
 - Name: Moinul Islam Shad
-- Submission date (YYYY-MM-DD): 2026-09-09
-- Hours actually spent: ~9 hours (see WORKLOG.md for the session-by-session breakdown - this went past the 8-hour target, and section 3 explains the scoping decisions that came with that)
+- Submission date (YYYY-MM-DD): 2026-09-11
+- Hours actually spent: ~9.75 hours (see WORKLOG.md for the session-by-session breakdown - this went past the 8-hour target, and section 3 explains the scoping decisions that came with that)
 - Repository / how to run it: github.com/msaaaad/trusted-invoice-intake - `cp .env.example .env`, set `GEMINI_API_KEY`, then `docker compose up --build`. Details in README.md.
+- Demo video: https://www.awesomescreenshot.com/video/56410890?key=44fddf0f422c79551213b119d5598e5f
 
 ## 1. Understanding the request
 
